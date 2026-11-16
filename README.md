@@ -8,10 +8,11 @@
 > 不会覆盖或清空原版容器；首次使用需在新容器准备游戏资源，也可通过原版高级设置迁出资源后迁入。
 > 修复设计与验证边界见 [Android 17 兼容记录](docs/android17-service-connection-fix.md)。
 
-> **当前源码：1.5.4（尚未发布 APK）**。在 1.5.3 启动修复基础上，修正 Google
+> **当前版本：[1.5.4 Android 17 测试版](https://github.com/hj6hki123/limbusZhCN/releases/tag/v1.5.4-android17.1)**。在 1.5.3 启动修复基础上，修正 Google
 > 登录服务的本地 Binder 回调，以及 Apple/Firebase 登录的浏览器探测与打开流程。
-> `v1.5.3-android17.1` Release 中的 APK 不包含这次修改。Samsung / Android 17
-> 的账号选择、授权返回与最终游戏登录仍须真机复测。
+> 本次使用新的社区签名，不能覆盖安装 1.5.3 Android 17 测试版；卸载旧版会删除其容器数据，
+> 请先查看 Release 的安装说明。Samsung / Android 17 的账号选择、授权返回与最终游戏登录
+> 仍须真机复测。后续版本沿用本次社区签名。
 
 这是一个面向 `com.ProjectMoon.LimbusCompany` 的 Android 汉化辅助项目。当前主线方案是把 Google Play 已安装的 Limbus Company 同步进 VirtualApp 容器，在容器内启动游戏，并把汉化资源写入容器可见的游戏数据目录。
 

@@ -49,9 +49,14 @@ session identity, remote wire delivery, browser probes, actual browser selection
 outbound Intent sanitization, and rejection of unrelated apps/URLs/components.
 Host tests are not proof of Google or Apple login on the Samsung/API 37 device.
 
-The follow-up source version is 1.5.4 / code 10. It is not the APK attached to
-the existing 1.5.3 Release. The original fork signing key is not present in this
-Windows checkout; no replacement key or differently signed upgrade is generated.
+The follow-up version is 1.5.4 / code 10. It is not the APK attached to the
+existing 1.5.3 Release. The original fork signing key is not present in this
+Windows checkout. The user confirmed uninstalling the previous test app and
+authorized a fresh install with a new signature. A persistent community key was
+created locally and must be reused for future releases; neither it nor its
+passwords may be committed or uploaded. This APK cannot update the 1.5.3 test app.
+New certificate SHA-256:
+`2a8e8b9d1ac696f474ba8a880685a91dba4fd659efb78ec8d03f5a5867324415`.
 
 Follow-up host validation on Windows / JDK 21 / SDK 35: all Java and Kotlin
 sources compile; 141 unit tests complete with 138 passes, 3 existing skips and
@@ -61,6 +66,16 @@ Firebase preflight, URL scope, exported browser selection, outgoing Intent
 sanitization and missing/incorrect explicit targets. This run uses a local Gradle
 init script to disable native rebuilding (no native source changed); it is not a
 full NDK build, APK signing check or device login test.
+
+The subsequent release build uses Windows, JDK 21, SDK 35 and the exact NDK
+30.0.14904198 to rebuild the arm64 native library and assemble the Release APK.
+The same test suite passes. The newly signed 1.5.4 APK passes v2 signature and
+16 KiB ZIP alignment checks; every ELF PT_LOAD segment has 16 KiB alignment.
+Manifest checks confirm code 10, the fork package, a non-debuggable application
+and all 106 fork provider authorities. The test-only IBinderSession type is absent
+from production DEX. APK SHA-256:
+`f0aa2e18ba75406e2d6b7851b2b29ff75154ffbdd3fc7fd705d5cf0c73a0eab6`.
+This still does not establish device login success.
 
 ## Distribution
 
