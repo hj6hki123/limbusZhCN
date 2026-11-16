@@ -37,6 +37,7 @@ import com.lody.virtual.client.hook.base.MethodProxy;
 import com.lody.virtual.client.hook.utils.MethodParameterUtils;
 import com.lody.virtual.client.ipc.VPackageManager;
 import com.lody.virtual.helper.compat.ParceledListSliceCompat;
+import com.lody.virtual.helper.compat.LimbusAuthBrowserCompat;
 import com.lody.virtual.helper.utils.ArrayUtils;
 import com.lody.virtual.helper.utils.FileUtils;
 import com.lody.virtual.helper.utils.VLog;
@@ -792,6 +793,11 @@ class MethodProxies {
         @Override
         public Object call(Object who, Method method, Object... args) throws Throwable {
             boolean slice = ParceledListSliceCompat.isReturnParceledListSlice(method);
+            if (LimbusAuthBrowserCompat.isBrowserLookup(getAppPkg(), (Intent) args[0])) {
+                List<ResolveInfo> browsers = LimbusAuthBrowserCompat.queryBrowsers(
+                        VirtualCore.get().getUnHookPackageManager(), (Intent) args[0]);
+                return slice ? ParceledListSliceCompat.create(browsers) : browsers;
+            }
             int userId = VUserHandle.myUserId();
             List<ResolveInfo> appResult = VPackageManager.get().queryIntentActivities((Intent) args[0],
                     (String) args[1], readPackageFlags(args[2]), userId);
@@ -1375,6 +1381,10 @@ class MethodProxies {
         @Override
         public Object call(Object who, Method method, Object... args) throws Throwable {
             Intent intent = (Intent) args[0];
+            if (LimbusAuthBrowserCompat.isBrowserLookup(getAppPkg(), intent)) {
+                return LimbusAuthBrowserCompat.resolveBrowser(
+                        VirtualCore.get().getUnHookPackageManager(), intent);
+            }
             String resolvedType = (String) args[1];
             int flags = readPackageFlags(args[2]);
             int userId = VUserHandle.myUserId();

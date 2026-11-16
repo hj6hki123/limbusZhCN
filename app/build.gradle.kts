@@ -24,8 +24,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // 手动更新补丁提高安装版本，确保修复包可覆盖已发布版本并保留容器数据。
-        versionCode = 9
-        versionName = "1.5.3"
+        versionCode = 10
+        versionName = "1.5.4"
 
         manifestPlaceholders["LIMBUS_APP_LABEL"] = providers.gradleProperty("limbusAppLabel")
             .orElse("@string/app_name").get()

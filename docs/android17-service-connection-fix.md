@@ -21,6 +21,47 @@ This does not change game APKs, native hooks, accounts, downloaded game resource
 or the translation index. The later native crash in the diagnostic must be
 rechecked after fixing the first fatal callback; a device run is still required.
 
+## Login follow-up (Samsung diagnostic at 20:37 on 2026-11-16)
+
+The first build reaches `PlayDone`, but Google login stops in Credentials
+`HiddenActivity`. Immediately after wrapping the microG identity service, Android
+reports `ibinderForJavaObject: ... is not a Binder object`. The Java-only
+`StubBinder` wrapper cannot cross a native Parcel boundary. Deliver session-aware
+callbacks directly to a local connection using the runtime four-argument method,
+converting the original session Binder with the framework's own Stub.asInterface.
+Keep the existing wire codec for remote/native Binder connections. Do not unwrap
+the service: its local broker interception is necessary for calling identity.
+
+Apple's Firebase GenericIdpActivity reports `Device cannot resolve intent for:
+android.intent.action.VIEW`. Firebase first probes a bare ACTION_VIEW, then queries
+Custom Tabs, then opens the HTTPS auth handler. Package isolation currently blocks
+both the probe and the launch. Permit only browser availability lookups and HTTPS
+Firebase `/__/auth/handler` launches for Limbus, resolving actual exported browser
+activities through the unhooked host PackageManager. Rebuild the outgoing Intent
+with just its URL and browser component; do not forward extras, grants, selectors,
+or clip data. Keep all other host package/activity isolation and the existing
+exact Firebase return-URI gate. Do not log authentication URL query parameters.
+The outbound exception accepts only HTTPS Firebase-owned `.firebaseapp.com` and
+`.web.app` hosts; arbitrary custom auth domains remain outside this exception.
+
+Regression checks must cover a Java-only wrapped service surviving local delivery,
+session identity, remote wire delivery, browser probes, actual browser selection,
+outbound Intent sanitization, and rejection of unrelated apps/URLs/components.
+Host tests are not proof of Google or Apple login on the Samsung/API 37 device.
+
+The follow-up source version is 1.5.4 / code 10. It is not the APK attached to
+the existing 1.5.3 Release. The original fork signing key is not present in this
+Windows checkout; no replacement key or differently signed upgrade is generated.
+
+Follow-up host validation on Windows / JDK 21 / SDK 35: all Java and Kotlin
+sources compile; 141 unit tests complete with 138 passes, 3 existing skips and
+zero failures/errors. The two new local-callback tests both fail against the old
+ServiceConnectionCompat and pass against the fix. Five browser tests cover the
+Firebase preflight, URL scope, exported browser selection, outgoing Intent
+sanitization and missing/incorrect explicit targets. This run uses a local Gradle
+init script to disable native rebuilding (no native source changed); it is not a
+full NDK build, APK signing check or device login test.
+
 ## Distribution
 
 The upstream signing private key is unavailable. A build with a new key cannot

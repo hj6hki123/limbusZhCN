@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.os.BadParcelableException
 import android.os.Binder
 import android.os.IBinder
+import android.os.IInterface
 import android.os.Parcel
 import android.os.RemoteException
 import com.lody.virtual.helper.compat.ServiceConnectionCompat
@@ -25,8 +26,63 @@ class ServiceConnectionCompatTest {
         fun connected(name: ComponentName?, service: IBinder?, dead: Boolean)
     }
 
-    interface SessionConnection {
+    interface SessionConnection : IInterface {
         fun connected(name: ComponentName?, service: IBinder?, session: IBinderSession?, dead: Boolean)
+    }
+
+    @Test
+    fun localCallbackKeepsJavaOnlyServiceDecoratorAndOriginalSession() {
+        val component = ComponentName("com.google.android.gms", "example.IdentitySignInService")
+        val base = Binder()
+        // Same representation as production StubBinder: implements IBinder, is not a Binder.
+        val wrapped = object : IBinder by base { }
+        val session = Binder()
+        var delivered = false
+        val target = object : Binder(), SessionConnection {
+            init { attachInterface(this, ServiceConnectionCompat.DESCRIPTOR) }
+            override fun asBinder(): IBinder = this
+            override fun connected(name: ComponentName?, service: IBinder?, receivedSession: IBinderSession?, dead: Boolean) {
+                delivered = true
+                assertEquals(component, name)
+                assertSame(wrapped, service)
+                assertSame(session, receivedSession?.asBinder())
+                assertTrue(dead)
+            }
+            override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+                fail("Local callback must not serialize the Java IBinder decorator")
+                return false
+            }
+        }
+        ServiceConnectionCompat.sendSessionConnected(target, component, wrapped, session, true)
+        assertTrue(delivered)
+    }
+
+    @Test
+    fun localDisconnectPreservesNullsAndDoesNotRetryAfterCallbackFailure() {
+        var calls = 0
+        val target = object : Binder(), SessionConnection {
+            init { attachInterface(this, ServiceConnectionCompat.DESCRIPTOR) }
+            override fun asBinder(): IBinder = this
+            override fun connected(name: ComponentName?, service: IBinder?, session: IBinderSession?, dead: Boolean) {
+                calls++
+                assertNull(name)
+                assertNull(service)
+                assertNull(session)
+                assertFalse(dead)
+                throw SecurityException("callback rejected")
+            }
+            override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+                fail("A failing local callback must not be retried through Parcel")
+                return false
+            }
+        }
+        try {
+            ServiceConnectionCompat.sendSessionConnected(target, null, null, null, false)
+            fail("Expected callback error")
+        } catch (expected: SecurityException) {
+            assertEquals("callback rejected", expected.message)
+        }
+        assertEquals(1, calls)
     }
 
     interface UnrelatedFourArgumentConnection {

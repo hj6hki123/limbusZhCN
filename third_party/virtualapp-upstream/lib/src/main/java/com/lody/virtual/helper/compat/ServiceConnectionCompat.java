@@ -4,10 +4,12 @@ import android.app.IServiceConnection;
 import android.content.ComponentName;
 import android.os.BadParcelableException;
 import android.os.IBinder;
+import android.os.IInterface;
 import android.os.Parcel;
 import android.os.RemoteException;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 
 /** Binder compatibility for frameworks that add IBinderSession to connected(). */
 public final class ServiceConnectionCompat {
@@ -24,6 +26,10 @@ public final class ServiceConnectionCompat {
 
     /** Check the actual framework ABI, including vendor backports, without loading a new type. */
     public static boolean usesBinderSession(Class<?> connectionInterface) {
+        return findSessionConnectedMethod(connectionInterface) != null;
+    }
+
+    private static Method findSessionConnectedMethod(Class<?> connectionInterface) {
         for (Method method : connectionInterface.getMethods()) {
             Class<?>[] parameters = method.getParameterTypes();
             if ("connected".equals(method.getName())
@@ -33,10 +39,10 @@ public final class ServiceConnectionCompat {
                     && parameters[1] == IBinder.class
                     && "android.app.IBinderSession".equals(parameters[2].getName())
                     && parameters[3] == boolean.class) {
-                return true;
+                return method;
             }
         }
-        return false;
+        return null;
     }
 
     public static SessionConnection readSessionConnected(Parcel data) {
@@ -54,6 +60,35 @@ public final class ServiceConnectionCompat {
     /** Forward the session as an opaque Binder; never discard it or recreate its identity. */
     public static void sendSessionConnected(IBinder target, ComponentName name, IBinder service,
                                             IBinder session, boolean dead) throws RemoteException {
+        IInterface local = target.queryLocalInterface(DESCRIPTOR);
+        Method connected = local == null ? null : findSessionConnectedMethod(local.getClass());
+        if (connected != null) {
+            // StubBinder is a Java IBinder decorator, not a native Binder. Parceling it
+            // drops the service. LoadedApk's local connection must receive it directly.
+            try {
+                Object sessionInterface = null;
+                if (session != null) {
+                    Class<?> sessionType = connected.getParameterTypes()[2];
+                    Class<?> stub = Class.forName(sessionType.getName() + "$Stub", false,
+                            sessionType.getClassLoader());
+                    Method asInterface = stub.getDeclaredMethod("asInterface", IBinder.class);
+                    asInterface.setAccessible(true);
+                    sessionInterface = asInterface.invoke(null, session);
+                }
+                connected.setAccessible(true);
+                connected.invoke(local, name, service, sessionInterface, dead);
+                return;
+            } catch (InvocationTargetException error) {
+                Throwable cause = error.getCause();
+                if (cause instanceof RemoteException) throw (RemoteException) cause;
+                if (cause instanceof RuntimeException) throw (RuntimeException) cause;
+                if (cause instanceof Error) throw (Error) cause;
+                throw localDeliveryError(cause);
+            } catch (ReflectiveOperationException error) {
+                // Never retry through Parcel: that would silently discard the decorator.
+                throw localDeliveryError(error);
+            }
+        }
         Parcel data = Parcel.obtain();
         try {
             data.writeInterfaceToken(DESCRIPTOR);
@@ -72,6 +107,12 @@ public final class ServiceConnectionCompat {
         } finally {
             data.recycle();
         }
+    }
+
+    private static RemoteException localDeliveryError(Throwable cause) {
+        RemoteException error = new RemoteException("Unable to deliver local session-aware connection");
+        error.initCause(cause);
+        return error;
     }
 
     public static final class SessionConnection {

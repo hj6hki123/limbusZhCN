@@ -70,6 +70,7 @@ import com.lody.virtual.client.stub.StubManifest;
 import com.lody.virtual.helper.compat.ActivityManagerCompat;
 import com.lody.virtual.helper.compat.LimbusActivityCompat;
 import com.lody.virtual.helper.compat.LimbusAuthenticationCompat;
+import com.lody.virtual.helper.compat.LimbusAuthBrowserCompat;
 import com.lody.virtual.helper.compat.BuildCompat;
 import com.lody.virtual.helper.compat.BundleCompat;
 import com.lody.virtual.helper.compat.IntentCompat;
@@ -672,6 +673,21 @@ class MethodProxies {
             int resultToIndex = ArrayUtils.indexOfObject(args, IBinder.class, 2);
             String resolvedType = (String) args[intentIndex + 1];
             Intent intent = (Intent) args[intentIndex];
+
+            if (LimbusAuthBrowserCompat.isAuthBrowserIntent(getAppPkg(), intent)) {
+                Intent browserIntent = LimbusAuthBrowserCompat.buildBrowserLaunch(getAppPkg(),
+                        VirtualCore.get().getUnHookPackageManager(), intent);
+                if (browserIntent == null) {
+                    Log.w("LimbusVA", "No exported host browser available for Firebase Auth");
+                    return ActivityManagerCompat.START_INTENT_NOT_RESOLVED;
+                }
+                args[intentIndex] = browserIntent;
+                args[intentIndex + 1] = null;
+                MethodParameterUtils.replaceFirstAppPkg(args);
+                // Only the selected component is logged; the URL contains auth session data.
+                Log.i("LimbusVA", "Open Firebase Auth in host browser " + browserIntent.getComponent());
+                return method.invoke(who, args);
+            }
 
             Log.e("lxf","startActivity app "+getAppPkg());
             Log.e("lxf","startActivity intent "+ intent.toString());

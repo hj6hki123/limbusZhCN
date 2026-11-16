@@ -3,6 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <queries>
+        <!-- Firebase Auth probes browser availability before opening its OAuth URL. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
         <package android:name="com.ProjectMoon.LimbusCompany" />
         <!-- Android 11 起 PackageManager 查询受限；显式声明常见 ROM 的后台权限管理器，
              才能在 vivo/iQOO、MIUI、ColorOS、EMUI 等设备上验证并打开对应设置页。 -->
